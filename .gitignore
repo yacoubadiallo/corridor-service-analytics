@@ -1,0 +1,16 @@
+# Spark & Kafka
+data/
+checkpoints/
+checkpoint/
+derby.log
+metastore_db/
+spark-warehouse/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Docker & OS
+.DS_Store
+.env

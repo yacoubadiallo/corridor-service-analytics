@@ -1,0 +1,133 @@
+version: '3.8'
+
+services:
+
+  # ===================
+  # Zookeeper (Gestionnaire de la Haute Disponibilité)
+  # ===================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  # ===================
+  # Kafka (Ingestion de flux de données)
+  # ===================
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9092:9092"
+
+  # ===================
+  # MongoDB (Stockage final des résultats)
+  # ===================
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  # Visualisation interface pour MongoDB
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    ports:
+      - "8082:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+    depends_on:
+      - mongodb
+
+  # ===================
+  # Spark Master 1 (Actif ou Standby)
+  # ===================
+  spark-master-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: spark-master-1
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      - SPARK_DAEMON_JAVA_OPTS=-Dspark.deploy.recoveryMode=ZOOKEEPER -Dspark.deploy.zookeeper.url=zookeeper:2181
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    depends_on:
+      - zookeeper
+    volumes:
+      - ./data:/opt/spark/data
+      - ./apps:/opt/spark/apps
+
+  # ===================
+  # Spark Master 2 (Actif ou Standby)
+  # ===================
+  spark-master-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: spark-master-2
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      - SPARK_DAEMON_JAVA_OPTS=-Dspark.deploy.recoveryMode=ZOOKEEPER -Dspark.deploy.zookeeper.url=zookeeper:2181
+    ports:
+      - "8081:8080"
+      - "7078:7077"
+    depends_on:
+      - zookeeper
+    volumes:
+      - ./data:/opt/spark/data
+      - ./apps:/opt/spark/apps
+
+  # ===================
+  # Spark Workers (Les 5 unités de calcul)
+  # ===================
+  spark-worker-1: &worker_base
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master-1:7077,spark-master-2:7077
+    depends_on:
+      - spark-master-1
+      - spark-master-2
+    volumes:
+      - ./data:/opt/spark/data
+      - ./apps:/opt/spark/apps
+
+  spark-worker-2: { <<: *worker_base, container_name: spark-worker-2 }
+  spark-worker-3: { <<: *worker_base, container_name: spark-worker-3 }
+  spark-worker-4: { <<: *worker_base, container_name: spark-worker-4 }
+  spark-worker-5: { <<: *worker_base, container_name: spark-worker-5 }
+
+  # ===================
+  # Corridor Edge Node (Producteur Mali)
+  # ===================
+  corridor-edge-node:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: corridor-edge-node
+    depends_on:
+      - kafka
+    volumes:
+      - ./apps:/opt/spark/apps
+    command: python3 /opt/spark/apps/producer.py
+
+# ===================
+# Volumes persistants
+# ===================
+volumes:
+  mongo-data:
