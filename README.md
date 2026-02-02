@@ -10,6 +10,10 @@ Ce projet déploie une **Architecture Lambda** complète pour le monitoring de l
 
 ## 🖼️ Schéma de l'Architecture (Data Pipeline)
 
+
+
+
+
 ```mermaid
 graph LR
     subgraph "Ingestion"
@@ -28,7 +32,13 @@ graph LR
         F --> H[Historique / ML Ready]
     end
 
-    
+
+
+
+
+
+
+
 🚀 Déploiement
 1. Lancement de l'infrastructure
 Bash
