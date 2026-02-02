@@ -27,6 +27,8 @@ graph LR
         D --> G[Streamlit Dashboard]
         F --> H[Historique / ML Ready]
     end
+
+    
 🚀 Déploiement
 1. Lancement de l'infrastructure
 Bash
@@ -50,7 +52,7 @@ Spark Master UI : http://localhost:8080
 Mongo Express : http://localhost:8082
 
 💡 Défis Techniques Relevés
-Haute Disponibilité : Cluster Spark avec 2 Masters (via Zookeeper) et 5 Workers.
+Haute Disponibilité : Configuration d'un cluster Spark avec 2 Masters (via Zookeeper) et 5 Workers.
 
 Schéma Évolutif : Utilisation du format JSON pour capturer la diversité des avis sans contrainte de schéma rigide.
 
